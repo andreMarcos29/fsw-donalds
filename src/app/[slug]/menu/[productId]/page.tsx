@@ -24,7 +24,7 @@ const ProductPage = async ({ params }: ProductPageProps) => {
     },
   });
   if (!product) {
-    throw new Error("Produto não encontrado");
+    return notFound();
   }
   if (product.restaurant.slug.toUpperCase() !== slug.toUpperCase()) {
     return notFound();
