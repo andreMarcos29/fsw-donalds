@@ -1,30 +1,32 @@
 "use server";
-import { db } from "@/lib/prisma";
-import { ConsumptionMethod } from "@prisma/client";
-import { removeCpfPunctuation } from "../helpers/cpf";
-import { redirect } from "next/navigation";
 
-interface createOrderInput {
+import { ConsumptionMethod } from "@prisma/client";
+import { revalidatePath } from "next/cache";
+
+import { db } from "@/lib/prisma";
+
+import { removeCpfPunctuation } from "../helpers/cpf";
+
+interface CreateOrderInput {
   customerName: string;
   customerCpf: string;
   products: Array<{
     id: string;
     quantity: number;
-    price: number;
   }>;
   consumptionMethod: ConsumptionMethod;
   slug: string;
 }
 
-export const createOrder = async (input: createOrderInput) => {
-    const restaurant = await db.restaurant.findUnique({
-        where: {
-            slug: input.slug,
-        }
-    })
-    if (!restaurant) {
-        throw new Error("Restaurant not found")
-    }
+export const createOrder = async (input: CreateOrderInput) => {
+  const restaurant = await db.restaurant.findUnique({
+    where: {
+      slug: input.slug,
+    },
+  });
+  if (!restaurant) {
+    throw new Error("Restaurant not found");
+  }
   const productsWithPrices = await db.product.findMany({
     where: {
       id: {
@@ -37,7 +39,7 @@ export const createOrder = async (input: createOrderInput) => {
     quantity: product.quantity,
     price: productsWithPrices.find((p) => p.id === product.id)!.price,
   }));
-  await db.order.create({
+  const order = await db.order.create({
     data: {
       status: "PENDING",
       customerName: input.customerName,
@@ -55,5 +57,9 @@ export const createOrder = async (input: createOrderInput) => {
       restaurantId: restaurant.id,
     },
   });
-  redirect(`/${input.slug}/order?cpf=${removeCpfPunctuation(input.customerCpf)}`);
+  revalidatePath(`/${input.slug}/orders`);
+  // redirect(
+  //   `/${input.slug}/orders?cpf=${removeCpfPunctuation(input.customerCpf)}`,
+  // );
+  return order;
 };
